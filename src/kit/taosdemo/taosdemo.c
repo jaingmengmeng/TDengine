@@ -2249,7 +2249,7 @@ static int queryDbExec(TAOS *taos, char *command, QUERY_TYPE type, bool quiet) {
 }
 
 static int execSmlLines(TAOS *taos, char *lines[], int numLines, bool quiet) {
-    int32_t code = taos_insert_lines(taos, lines, numLines);
+    int32_t code = taos_schemaless_insert(taos, lines, numLines, 0);
     if (code != 0) {
         if (!quiet) {
             errorPrint2("Failed to execute schemaless line, reason: %s\n",
@@ -2945,10 +2945,6 @@ static int printfInsertMeta() {
             printf("  insertRows:        \033[33m%" PRId64 "\033[0m\n",
                    g_args.insertRows);
         }
-<<<<<<< HEAD
-
-=======
->>>>>>> dcb278feb5337bfda375fc59e0d4a8f7dc0d3c1f
         printf("\n");
     }
 
