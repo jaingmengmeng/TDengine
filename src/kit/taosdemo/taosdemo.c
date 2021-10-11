@@ -279,36 +279,36 @@ typedef struct SSuperTable_S {
     uint64_t childTblOffset;
 
     //  int          multiThreadWriteOneTbl;  // 0: no, 1: yes
-    uint32_t interlaceRows;  //
-    int      disorderRatio;  // 0: no disorder, >0: x%
-    int      disorderRange;  // ms, us or ns. according to database precision
-    uint64_t maxSqlLen;      //
+    uint32_t     interlaceRows;           //
+    int          disorderRatio;           // 0: no disorder, >0: x%
+    int          disorderRange;           // ms, us or ns. according to database precision
+    uint64_t     maxSqlLen;               //
 
-    uint64_t insertInterval;  // insert interval, will override global insert
-                              // interval
-    int64_t insertRows;
-    int64_t timeStampStep;
-    char    startTimestamp[MAX_TB_NAME_SIZE];
-    char    sampleFormat[SMALL_BUFF_LEN];  // csv, json
-    char    sampleFile[MAX_FILE_NAME_LEN];
-    char    tagsFile[MAX_FILE_NAME_LEN];
+    uint64_t     insertInterval;          // insert interval, will override global insert interval
+    int64_t      insertRows;
+    int64_t      timeStampStep;
+    char         startTimestamp[MAX_TB_NAME_SIZE];
+    char         sampleFormat[SMALL_BUFF_LEN];  // csv, json
+    char         sampleFile[MAX_FILE_NAME_LEN];
+    char         tagsFile[MAX_FILE_NAME_LEN];
 
-    uint32_t  columnCount;
-    StrColumn columns[TSDB_MAX_COLUMNS];
-    uint32_t  tagCount;
-    StrColumn tags[TSDB_MAX_TAGS];
+    uint32_t     columnCount;
+    StrColumn    columns[TSDB_MAX_COLUMNS];
+    uint32_t     tagCount;
+    StrColumn    tags[TSDB_MAX_TAGS];
 
-    char *   childTblName;
-    char *   colsOfCreateChildTable;
-    uint64_t lenOfOneRow;
-    uint64_t lenOfTagOfOneRow;
+    char*        childTblName;
+    char*        colsOfCreateChildTable;
+    uint64_t     lenOfOneRow;
+    uint64_t     lenOfTagOfOneRow;
 
-    char *sampleDataBuf;
+    char*        sampleDataBuf;
+    bool         useSampleTs;
 
-    uint32_t tagSource;  // 0: rand, 1: tag sample
-    char *   tagDataBuf;
-    uint32_t tagSampleCount;
-    uint32_t tagUsePos;
+    uint32_t     tagSource;    // 0: rand, 1: tag sample
+    char*        tagDataBuf;
+    uint32_t     tagSampleCount;
+    uint32_t     tagUsePos;
 
 #if STMT_BIND_PARAM_BATCH == 1
     // bind param batch
@@ -1767,13 +1767,11 @@ static void parse_args(int argc, char *argv[], SArguments *arguments) {
                         arguments->data_type[index] = TSDB_DATA_TYPE_DOUBLE;
                     } else if (0 == strcasecmp(token, "TINYINT")) {
                         arguments->data_type[index] = TSDB_DATA_TYPE_TINYINT;
-                    } else if (1 == regexMatch(token,
-                                               "^BINARY(\\([1-9][0-9]*\\))?$",
-                                               REG_ICASE | REG_EXTENDED)) {
+                    } else if (1 == regexMatch(token, "^BINARY(\\([1-9][0-9]*\\))?$", REG_ICASE |
+                    REG_EXTENDED)) {
                         arguments->data_type[index] = TSDB_DATA_TYPE_BINARY;
-                    } else if (1 == regexMatch(token,
-                                               "^NCHAR(\\([1-9][0-9]*\\))?$",
-                                               REG_ICASE | REG_EXTENDED)) {
+                    } else if (1 == regexMatch(token, "^NCHAR(\\([1-9][0-9]*\\))?$", REG_ICASE |
+                    REG_EXTENDED)) {
                         arguments->data_type[index] = TSDB_DATA_TYPE_NCHAR;
                     } else if (0 == strcasecmp(token, "BOOL")) {
                         arguments->data_type[index] = TSDB_DATA_TYPE_BOOL;
@@ -2892,7 +2890,9 @@ static int printfInsertMeta() {
                 printf("      sampleFormat:      \033[33m%s\033[0m\n",
                        g_Dbs.db[i].superTbls[j].sampleFormat);
                 printf("      sampleFile:        \033[33m%s\033[0m\n",
-                       g_Dbs.db[i].superTbls[j].sampleFile);
+                        g_Dbs.db[i].superTbls[j].sampleFile);
+                printf("      useSampleTs:       \033[33m%s\033[0m\n",
+                        g_Dbs.db[i].superTbls[j].useSampleTs ? "yes (warning: disorderRange/disorderRatio is disabled)" : "no");
                 printf("      tagsFile:          \033[33m%s\033[0m\n",
                        g_Dbs.db[i].superTbls[j].tagsFile);
                 printf("      columnCount:       \033[33m%d\033[0m\n        ",
@@ -2945,7 +2945,10 @@ static int printfInsertMeta() {
             printf("  insertRows:        \033[33m%" PRId64 "\033[0m\n",
                    g_args.insertRows);
         }
+<<<<<<< HEAD
 
+=======
+>>>>>>> dcb278feb5337bfda375fc59e0d4a8f7dc0d3c1f
         printf("\n");
     }
 
@@ -4165,55 +4168,37 @@ static int getSuperTableFromServer(TAOS *taos, char *dbName,
                      (char *)row[TSDB_DESCRIBE_METRIC_FIELD_INDEX],
                      fields[TSDB_DESCRIBE_METRIC_FIELD_INDEX].bytes);
 
+
             if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                 "INT", strlen("INT")) &&
-                strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                       "UNSIGNED") == NULL) {
+                        "INT", strlen("INT")) &&
+                        strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX], "UNSIGNED") == NULL) {
                 superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_INT;
-            } else if (0 == strncasecmp(
-                                (char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                "TINYINT", strlen("TINYINT")) &&
-                       strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                              "UNSIGNED") == NULL) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_TINYINT;
-            } else if (0 == strncasecmp(
-                                (char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                "SMALLINT", strlen("SMALLINT")) &&
-                       strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                              "UNSIGNED") == NULL) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_SMALLINT;
-            } else if (0 == strncasecmp(
-                                (char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                "BIGINT", strlen("BIGINT")) &&
-                       strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                              "UNSIGNED") == NULL) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_BIGINT;
-            } else if (0 ==
-                       strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                   "FLOAT", strlen("FLOAT"))) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_FLOAT;
-            } else if (0 ==
-                       strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                   "DOUBLE", strlen("DOUBLE"))) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_DOUBLE;
-            } else if (0 ==
-                       strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                   "BINARY", strlen("BINARY"))) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_BINARY;
-            } else if (0 ==
-                       strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                   "NCHAR", strlen("NCHAR"))) {
-                superTbls->columns[columnIndex].data_type =
-                    TSDB_DATA_TYPE_NCHAR;
-            } else if (0 ==
-                       strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                                   "BOOL", strlen("BOOL"))) {
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "TINYINT", strlen("TINYINT")) &&
+                        strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX], "UNSIGNED") == NULL) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_TINYINT;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "SMALLINT", strlen("SMALLINT")) &&
+                        strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX], "UNSIGNED") == NULL) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_SMALLINT;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "BIGINT", strlen("BIGINT")) &&
+                        strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX], "UNSIGNED") == NULL) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_BIGINT;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "FLOAT", strlen("FLOAT"))) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_FLOAT;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "DOUBLE", strlen("DOUBLE"))) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_DOUBLE;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "BINARY", strlen("BINARY"))) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_BINARY;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "NCHAR", strlen("NCHAR"))) {
+                superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_NCHAR;
+            } else if (0 == strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
+                        "BOOL", strlen("BOOL"))) {
                 superTbls->columns[columnIndex].data_type = TSDB_DATA_TYPE_BOOL;
             } else if (0 ==
                        strncasecmp((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
@@ -4263,13 +4248,11 @@ static int getSuperTableFromServer(TAOS *taos, char *dbName,
             superTbls->columns[columnIndex].dataLen =
                 *((int *)row[TSDB_DESCRIBE_METRIC_LENGTH_INDEX]);
             tstrncpy(superTbls->columns[columnIndex].note,
-                     (char *)row[TSDB_DESCRIBE_METRIC_NOTE_INDEX],
-                     min(NOTE_BUFF_LEN,
-                         fields[TSDB_DESCRIBE_METRIC_NOTE_INDEX].bytes) +
-                         1);
+                    (char *)row[TSDB_DESCRIBE_METRIC_NOTE_INDEX],
+                    min(NOTE_BUFF_LEN,
+                        fields[TSDB_DESCRIBE_METRIC_NOTE_INDEX].bytes) + 1);
 
-            if (strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
-                       "UNSIGNED") == NULL) {
+            if (strstr((char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX], "UNSIGNED") == NULL) {
                 tstrncpy(superTbls->columns[columnIndex].dataType,
                          (char *)row[TSDB_DESCRIBE_METRIC_TYPE_INDEX],
                          min(DATATYPE_BUFF_LEN,
@@ -5403,6 +5386,23 @@ static int readTagFromCsvFileToMem(SSuperTable *stbInfo) {
     return 0;
 }
 
+static void getAndSetRowsFromCsvFile(SSuperTable *stbInfo) {
+    FILE *fp = fopen(stbInfo->sampleFile, "r");
+    int line_count = 0;
+    if (fp == NULL) {
+        errorPrint("Failed to open sample file: %s, reason:%s\n",
+                stbInfo->sampleFile, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    char *buf = calloc(1, stbInfo->maxSqlLen);
+    while (fgets(buf, stbInfo->maxSqlLen, fp)) {
+        line_count++;
+    }
+    fclose(fp);
+    tmfree(buf);
+    stbInfo->insertRows = line_count;
+}
+
 /*
    Read 10000 lines at most. If more than 10000 lines, continue to read after
    using
@@ -6382,6 +6382,23 @@ static bool getMetaFromInsertJsonFile(cJSON *root) {
                 goto PARSE_OVER;
             }
 
+            cJSON *useSampleTs = cJSON_GetObjectItem(stbInfo, "use_sample_ts");
+            if (useSampleTs && useSampleTs->type == cJSON_String
+                    && useSampleTs->valuestring != NULL) {
+                if (0 == strncasecmp(useSampleTs->valuestring, "yes", 3)) {
+                    g_Dbs.db[i].superTbls[j].useSampleTs = true;
+                } else if (0 == strncasecmp(useSampleTs->valuestring, "no", 2)){
+                    g_Dbs.db[i].superTbls[j].useSampleTs = false;
+                } else {
+                    g_Dbs.db[i].superTbls[j].useSampleTs = false;
+                }
+            } else if (!useSampleTs) {
+                g_Dbs.db[i].superTbls[j].useSampleTs = false;
+            } else {
+                errorPrint("%s", "failed to read json, use_sample_ts not found\n");
+                goto PARSE_OVER;
+            }
+
             cJSON *tagsFile = cJSON_GetObjectItem(stbInfo, "tags_file");
             if ((tagsFile && tagsFile->type == cJSON_String) &&
                 (tagsFile->valuestring != NULL)) {
@@ -7200,13 +7217,21 @@ static int getRowDataFromSample(char *dataBuf, int64_t maxLen,
         *sampleUsePos = 0;
     }
 
-    int dataLen = 0;
-
-    dataLen += snprintf(dataBuf + dataLen, maxLen - dataLen, "(%" PRId64 ", ",
-                        timestamp);
-    dataLen += snprintf(
-        dataBuf + dataLen, maxLen - dataLen, "%s",
-        stbInfo->sampleDataBuf + stbInfo->lenOfOneRow * (*sampleUsePos));
+    int    dataLen = 0;
+    if(stbInfo->useSampleTs) {
+        dataLen += snprintf(dataBuf + dataLen, maxLen - dataLen,
+            "(%s",
+            stbInfo->sampleDataBuf
+            + stbInfo->lenOfOneRow * (*sampleUsePos));
+    } else {
+        dataLen += snprintf(dataBuf + dataLen, maxLen - dataLen,
+            "(%" PRId64 ", ", timestamp);
+        dataLen += snprintf(dataBuf + dataLen, maxLen - dataLen,
+            "%s",
+            stbInfo->sampleDataBuf
+            + stbInfo->lenOfOneRow * (*sampleUsePos));
+    }
+    
     dataLen += snprintf(dataBuf + dataLen, maxLen - dataLen, ")");
 
     (*sampleUsePos)++;
@@ -7636,6 +7661,9 @@ static int prepareSampleForStb(SSuperTable *stbInfo) {
 
     int ret;
     if (0 == strncasecmp(stbInfo->dataSource, "sample", strlen("sample"))) {
+        if(stbInfo->useSampleTs) {
+            getAndSetRowsFromCsvFile(stbInfo);
+        }
         ret = generateSampleFromCsvForStb(stbInfo);
     } else {
         ret = generateSampleFromRandForStb(stbInfo);
